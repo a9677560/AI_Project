@@ -1,10 +1,9 @@
 # 比特幣價格趨勢預測
 
 ![image](https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue)
+![image](https://img.shields.io/badge/artificial%20intelligence-8A2BE2?style=for-the-badge)
 
-## Outline
 - [比特幣價格趨勢預測](#比特幣價格趨勢預測)
-  - [Outline](#outline)
   - [開發動機](#開發動機)
   - [資料集](#資料集)
   - [開發過程](#開發過程)
