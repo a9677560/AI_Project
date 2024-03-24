@@ -1,6 +1,9 @@
 /Data
-
 /ai_project
+/Bitcoin_Prediction/Data
 
 stock_bot.py
 test.py
+CrossStrategy.html
+
+.DS_Store
