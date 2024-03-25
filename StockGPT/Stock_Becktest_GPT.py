@@ -50,7 +50,8 @@ def ai_helper(df, user_msg):
         After processing, the function should return the processed \
         dataframe. Your response should strictly contain the Python \
         code for the 'calculate(df)' function \
-        and exclude any unrelated content."
+        and exclude any unrelated content.\
+        At the same time, the reply content cannot include the ```Python``` format."
     }]
     reply_data = get_reply(msg)
     return reply_data
@@ -109,37 +110,84 @@ class AI_strategy(Strategy):
     reply_data = get_reply(msg)
     return reply_data
 
-# TODO: 將 AI 生成的 calculate(df) 執行並回傳 new_df
-def ai_code_exec(df, instruction):
-    code_str = ai_helper(df, instruction)
-    print(code_str)
+def ai_backtest(stock_id, period, user_msg, add_msg="無", print_stat = False, debug = False):
+    try:
+        df = yf.download(stock_id, period=period)
 
-    # 將 exec 生成的 calculate 設為 local variable
-    local_vars = {}
-    # 執行 AI 產生的程式碼
-    exec(code_str, globals(), local_vars)
-    calculate = local_vars['calculate']
+        # 取得指標計算程式碼
+        code_str = ai_helper(df, user_msg)
+        local_namespace = {}
+        exec(code_str, globals(), local_namespace)
+        calculate = local_namespace['calculate']
+        new_df = calculate(df)
 
-    new_df = df.copy()
-    new_df = calculate(new_df)
-    return new_df
+        # 取得回測策略程式碼
+        strategy_str = ai_strategy(new_df, user_msg, add_msg)
+        # Debug mode
+        if debug == True:
+            print(strategy_str)
+            print("-----------------------------")
 
-stock_id = "2330.tw"
+        exec(strategy_str, globals(), local_namespace)
+        AIstrategy = local_namespace['AI_strategy']
+        backtest = Backtest(new_df,
+                            AIstrategy,
+                            cash=100000,
+                            commission=0.004,
+                            trade_on_close=True,
+                            exclusive_orders=True
+                            )
+        stats = backtest.run()
 
-# 下載股票資料並讓 AI 計算指標
-df = yf.download(stock_id, period='5y')
-user_msg = ["MACD", "請設置 10% 的停損點和 20% 的停利點"]
-new_df = ai_code_exec(df, user_msg[0])
+        if print_stat == True:
+            print(stats)
+            print("------------------------------")
+            
+        return str(stats)
+    except SystemError as se:
+        print(f"Syntax error occurred during code execution: {se}")
+        return None
+    except ValueError as ve:
+        print(f"Value error occurred during code execution: {ve}")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred during code execution: {e}")
+        return None
 
-strategy_str = ai_strategy(new_df, user_msg[0], user_msg[1])
-print(strategy_str)
-print("--------------------")
-exec(strategy_str)
-backtest = Backtest(new_df,
-                    AI_strategy,
-                    cash=100000,
-                    commission=0.004,
-                    trade_on_close=True,
-                    exclusive_orders=True)
-stats = backtest.run()
-print(stats)
+
+def backtest_analysis(*backtests):
+    content_list = [f"策略 {i+1}: {report}" for i, report in enumerate(backtests)]
+    content = "\n".join(content_list)
+    content += "\n\n請依照以上資料給我一份約 200 字的分析報告。若有多個策略,\
+                請選出最好的策略及說明原因, reply in 繁體中文"
+        
+    msg = [{
+        "role": "system",
+        "content": "你是一位專業的證券分析師,我會給你交易策略的回測績效,\
+                    請幫我進行績效分析.不用詳細講解每個欄位,\
+                    重點說明即可,並回答交易策略的好壞.\
+                    此外,回覆的格式必須人性化. 比如數字和中文與英文和中文的間隔,\
+                    數字或英文前後都必須要有空格來做分離. 比如: 分別為 0.39 和 0.58。"
+    }, {
+        "role": "user",
+        "content": content
+    }]
+
+    reply_data = get_reply(msg)
+    return reply_data
+
+if __name__ == "__main__":
+    stats1 = ai_backtest(stock_id="2330.tw", period="5y",
+                         user_msg="MACD", add_msg="請設置 10% 的停損點和 20% 的停利點")
+    stats2 = ai_backtest(stock_id="2330.tw", period="5y",
+                         user_msg="SMA")
+    stats3 = ai_backtest(stock_id="2330.tw", period="5y",
+                        user_msg="RSI", add_msg="請設置 10% 的停損點與 20% 的停利點")
+    
+    # 回測時偶爾會出現意外狀況，故檢查
+    if stats1 is None or stats2 is None or stats3 is None:
+        print("回測時出現錯誤，請重新再試")
+        exit()
+
+    reply = backtest_analysis(stats1, stats2, stats3)
+    print(reply)
