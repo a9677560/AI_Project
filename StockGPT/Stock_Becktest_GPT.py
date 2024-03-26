@@ -1,32 +1,26 @@
-from openai import OpenAI, OpenAIError
+from openai_interface import get_reply
 import yfinance as yf
 import pandas as pd
 import datetime as dt 
 from backtesting import Backtest, Strategy
 from backtesting.lib import crossover
-import os
 
 # 繞過 compiler 檢查用
 class AI_strategy:
     pass
 
-def get_openAI_client():
-    file_path = os.path.join(os.getcwd(), "Data", "openai_token")
-    with open(file_path, 'r') as file:
-        api_key = file.read().strip()  # 去除空白字符
-    client = OpenAI(api_key=api_key)
-    return client
-
-def get_reply(messages):
-    try:
-        client = get_openAI_client()
-        response = client.chat.completions.create(model='gpt-3.5-turbo', messages=messages)
-        reply = response.choices[0].message.content
-    except OpenAIError as err:
-        reply = f"發生 {err.type} 錯誤\n{err.message}"
-    return reply
-
 def ai_helper(df, user_msg):
+    """
+    讓 AI 產生資料處理需要的程式碼
+
+    Args:
+    df (pd.DataFrame)
+    user_msg (str): 需要計算的指標
+
+    Returns:
+    str: code of calculate(df) function
+    """
+    
     msg = [{
         "role": "system",
         "content": 
@@ -57,7 +51,19 @@ def ai_helper(df, user_msg):
     return reply_data
 
 def ai_strategy(df, user_msg, add_msg="無"):
+    """
+    讓 AI 產生 Backtest 所需的策略程式碼
+
+    Args:
+    df (pd.DataFrame)
+    user_msg (str): 需要計算的指標
+    add_msg (str): 使用者額外的需求
+
+    Returns:
+    str: code of AI_strategy() class
+    """
     # code_exmaple 須按照 python 的程式格式，不可為了美化而修改格式，否則將會出現 IndentationError
+    # TODO: 解決偶爾出現的 exec 不穩定問題，源於未知原因導致的 column 消失
     code_example = '''
 class AI_strategy(Strategy):
     def init(self):
@@ -110,7 +116,21 @@ class AI_strategy(Strategy):
     reply_data = get_reply(msg)
     return reply_data
 
-def ai_backtest(stock_id, period, user_msg, add_msg="無", print_stat = False, debug = False):
+def ai_backtest(stock_id, period, user_msg, add_msg="無", print_stat = True, debug = False):
+    """
+    透過 yfinance 下載股票資料，透過 AI 處理資料後，計算 Backtest 結果
+
+    Args:
+    stock_id (str): 股票代碼
+    period (str): 要收集的資料時間
+    user_msg (str): 需要計算的指標
+    add_msg (str): 使用者額外的需求
+    print_stat (bool): 是否輸出 backtest 結果
+    debug (bool): 是否輸出從 AI 得到的程式碼
+
+    Returns:
+    str: Backtest 的結果, 當異常發生則為 None 
+    """
     try:
         df = yf.download(stock_id, period=period)
 
@@ -156,6 +176,15 @@ def ai_backtest(stock_id, period, user_msg, add_msg="無", print_stat = False, d
 
 
 def backtest_analysis(*backtests):
+    """
+    讓 AI 分析多個 backtests 的結果
+
+    Args:
+    *backtests (tuple): 需要被分析的 backtest 輸出結果
+
+    Returns:
+    str: AI 總結的分析結果
+    """
     content_list = [f"策略 {i+1}: {report}" for i, report in enumerate(backtests)]
     content = "\n".join(content_list)
     content += "\n\n請依照以上資料給我一份約 200 字的分析報告。若有多個策略,\

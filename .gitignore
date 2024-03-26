@@ -1,6 +1,7 @@
 /Data
 /ai_project
 /Bitcoin_Prediction/Data
+*/__pycache__
 
 stock_bot.py
 test.py
