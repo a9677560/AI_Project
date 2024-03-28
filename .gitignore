@@ -1,10 +1,11 @@
+*/Data
 /Data
 /ai_project
 /Bitcoin_Prediction/Data
 */__pycache__
 
-stock_bot.py
-test.py
 CrossStrategy.html
 
+*.pkl
+*.PDF
 .DS_Store
